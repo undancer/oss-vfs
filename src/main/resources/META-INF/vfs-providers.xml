@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<providers>
+    <!-- see http://commons.apache.org/proper/commons-vfs/api.html -->
+    <provider class-name="com.github.undancer.vfs.provider.oss.OSSFileProvider">
+        <scheme name="oss"/>
+        <!--<scheme name="oss-beijing"/>-->
+    </provider>
+</providers>
