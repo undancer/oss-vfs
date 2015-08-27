@@ -9,6 +9,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,7 +27,8 @@ import java.util.Set;
  */
 public class OSSFileObject extends AbstractFileObject {
 
-    private OSS client;
+    private static final Logger logger = LoggerFactory.getLogger(OSSFileObject.class);
+
     private OSSObject object;
 
     private String bucketName;
@@ -38,13 +41,16 @@ public class OSSFileObject extends AbstractFileObject {
     protected OSSFileObject(OSSFileName name, OSSFileSystem fs) {
         super(name, fs);
         this.bucketName = ((OSSFileName) getName()).getBucketName();
-        this.client = OSSClientHolder.getClient();
+    }
+
+    protected OSS getClient() {
+        return ((OSSFileSystem) getFileSystem()).getClient();
     }
 
     protected FileType doGetType() throws Exception {
         if (fileType == null) {
             try {
-                ObjectListing listing = this.client.listObjects(new ListObjectsRequest(bucketName, getPrefix(getKey()), null,
+                ObjectListing listing = getClient().listObjects(new ListObjectsRequest(bucketName, getPrefix(getKey()), null,
                         delimiter, 1));
                 if (listing.getCommonPrefixes().size() > 0 || listing.getObjectSummaries().size() > 0) {
                     fileType = FileType.FOLDER;
@@ -55,7 +61,7 @@ public class OSSFileObject extends AbstractFileObject {
         }
         if (fileType == null) {
             try {
-                ObjectMetadata metadata = this.client.getObjectMetadata(bucketName, getKey());
+                ObjectMetadata metadata = getClient().getObjectMetadata(bucketName, getKey());
                 if (metadata != null) {
                     this.fileType = FileType.FILE;
                 }
@@ -78,6 +84,10 @@ public class OSSFileObject extends AbstractFileObject {
         return prefix;
     }
 
+    protected void doAttach() throws Exception {
+        logger.error("doAttach");
+    }
+
     protected String[] doListChildren() throws Exception {
         Set<String> children = Sets.newLinkedHashSet();
 
@@ -87,7 +97,7 @@ public class OSSFileObject extends AbstractFileObject {
         do {
             ListObjectsRequest request = new ListObjectsRequest(bucketName, prefix, marker, delimiter, 100);
             System.out.println(ToStringBuilder.reflectionToString(request));
-            ObjectListing objectListing = this.client.listObjects(request);
+            ObjectListing objectListing = getClient().listObjects(request);
             for (String commonPrefix : objectListing.getCommonPrefixes()) {
                 String key = StringUtils.removeStart(commonPrefix, prefix);
                 if (StringUtils.isNoneBlank(key)) {
@@ -107,11 +117,7 @@ public class OSSFileObject extends AbstractFileObject {
     }
 
     protected long doGetContentSize() throws Exception {
-        OSSFileCache cache = new OSSFileCache(this);
-        if (cache.isValid()) {
-            return cache.getSize();
-        }
-        final ObjectMetadata metadata = this.client.getObjectMetadata(bucketName, this.getKey());
+        final ObjectMetadata metadata = getClient().getObjectMetadata(bucketName, this.getKey());
         return metadata.getContentLength();
     }
 
@@ -128,7 +134,7 @@ public class OSSFileObject extends AbstractFileObject {
 
             try {
                 GetObjectRequest request = new GetObjectRequest(bucketName, getKey());
-                object = this.client.getObject(request);
+                object = getClient().getObject(request);
 //                LOGGER.info("downloading oss object : {}", objectPath);
                 ObjectMetadata metadata = object.getObjectMetadata();
                 InputStream inputStream = object.getObjectContent();

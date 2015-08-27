@@ -1,6 +1,8 @@
 package com.github.undancer.vfs.provider.oss;
 
+import com.aliyun.oss.ClientConfiguration;
 import com.aliyun.oss.OSSClient;
+import com.aliyun.oss.common.auth.ServiceCredentials;
 import org.apache.commons.vfs2.*;
 import org.apache.commons.vfs2.provider.AbstractOriginatingFileProvider;
 
@@ -13,11 +15,7 @@ import java.util.Collections;
  */
 public class OSSFileProvider extends AbstractOriginatingFileProvider /*extends AbstractFileProvider*/ {
 
-    public static final UserAuthenticationData.Type[] AUTHENTICATOR_TYPES = new UserAuthenticationData.Type[]
-            {
-                    UserAuthenticationData.USERNAME, UserAuthenticationData.PASSWORD
-            };
-    static final Collection<Capability> capabilities = Collections.unmodifiableCollection(
+    public static final Collection<Capability> capabilities = Collections.unmodifiableCollection(
             Arrays.asList(new Capability[]{
 //                    Capability.GET_TYPE,
 //                    Capability.READ_CONTENT,
@@ -28,7 +26,14 @@ public class OSSFileProvider extends AbstractOriginatingFileProvider /*extends A
 //                    Capability.DIRECTORY_READ_CONTENT,
                     Capability.LIST_CHILDREN,
             }));
+
     private static FileSystemOptions defaultFileSystemOptions = new FileSystemOptions();
+
+//    public static final UserAuthenticationData.Type[] AUTHENTICATOR_TYPES = new UserAuthenticationData.Type[]
+//            {
+//                    UserAuthenticationData.USERNAME, UserAuthenticationData.PASSWORD
+//            };
+
 
     public OSSFileProvider() {
         super();
@@ -41,16 +46,36 @@ public class OSSFileProvider extends AbstractOriginatingFileProvider /*extends A
 
 
     protected FileSystem doCreateFileSystem(FileName name, FileSystemOptions options) throws FileSystemException {
-        FileSystemOptions fsOptions = options != null ? options : defaultFileSystemOptions;
-        OSSClient client = OSSClientHolder.getClient();
+        FileSystemOptions fsOptions = options != null ? options : getDefaultFileSystemOptions();
+        OSSFileSystemConfigBuilder config = OSSFileSystemConfigBuilder.getInstance();
+        OSSClient client = config.getOSSClient(fsOptions);
         if (client == null) {
-            OSSClientHolder.init(fsOptions);
+            ServiceCredentials credentials = config.getServiceCredentials(fsOptions);
+
+            String endpoint = config.getEndpoint();
+            String accessKeyId = credentials.getAccessKeyId();
+            String accessKeySecret = credentials.getAccessKeySecret();
+
+            ClientConfiguration clientConfiguration = config.getClientConfiguration(fsOptions);
+
+            if (clientConfiguration == null) {
+                if (endpoint == null) {
+                    client = new OSSClient(accessKeyId, accessKeySecret);
+                } else {
+                    client = new OSSClient(endpoint, accessKeyId, accessKeySecret);
+                }
+            } else {
+                client = new OSSClient(endpoint, accessKeyId, accessKeySecret, clientConfiguration);
+            }
+
         }
 
-        if (name instanceof OSSFileName) {
-            return new OSSFileSystem((OSSFileName) name, fsOptions);
+        OSSFileSystem fileSystem = new OSSFileSystem((OSSFileName) name, client, fsOptions);
+
+        if (config.getOSSClient(fsOptions) == null) {
+//            fileSystem.setShutdownServiceOnClose(true);
         }
-        return null;
+        return fileSystem;
     }
 
     public Collection<Capability> getCapabilities() {

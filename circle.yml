@@ -1,0 +1,19 @@
+machine:
+  java:
+    version: oraclejdk7
+    # version: oraclejdk8
+  environment:
+    # JAVA_OPTS: "-Xms256m -Xmx512m -XX:MaxPermSize=512m"
+    MAVEN_OPTS: "-Xms256m -Xmx512m -XX:MaxPermSize=512m"
+dependencies:
+  pre:
+    - "mvn install -DskipTests"
+    - "mvn clean"
+test:
+  post:
+    - mkdir -p $CIRCLE_TEST_REPORTS/junit/
+    - find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} $CIRCLE_TEST_REPORTS/junit/ \;
+notify:
+  webhooks:
+    # A list of hook hashes, containing the url field
+    - url: https://hook.bearychat.com/=bw6BY/circleci/139e232a84884a9454b78173a0997d48

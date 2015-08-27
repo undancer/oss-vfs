@@ -1,8 +1,12 @@
 package com.github.undancer.vfs.provider.oss;
 
+import com.aliyun.oss.ClientException;
 import com.aliyun.oss.OSS;
+import com.aliyun.oss.OSSException;
+import com.aliyun.oss.model.Bucket;
 import org.apache.commons.vfs2.Capability;
 import org.apache.commons.vfs2.FileObject;
+import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.provider.AbstractFileName;
 import org.apache.commons.vfs2.provider.AbstractFileSystem;
@@ -15,20 +19,36 @@ import java.util.Collection;
 public class OSSFileSystem extends AbstractFileSystem {
 
     private OSS client;
-    private String bucketName;
+    private Bucket bucket;
 
-    protected OSSFileSystem(OSSFileName rootName, FileSystemOptions fileSystemOptions) {
-        this(null, rootName, null, fileSystemOptions);
-    }
+//    private boolean shutdownServiceOnClose = false;
 
-    protected OSSFileSystem(OSS client, OSSFileName rootName, FileSystemOptions fileSystemOptions) {
-        this(client, rootName, null, fileSystemOptions);
-    }
-
-    protected OSSFileSystem(OSS client, OSSFileName rootName, FileObject parentLayer, FileSystemOptions fileSystemOptions) {
-        super(rootName, parentLayer, fileSystemOptions);
+    protected OSSFileSystem(OSSFileName fileName, OSS client, FileSystemOptions fileSystemOptions) throws FileSystemException {
+        super(fileName, null, fileSystemOptions);
         this.client = client;
-        this.bucketName = rootName.getRootFile();
+        String bucketName = fileName.getBucketName();
+        try {
+            if (client.doesBucketExist(bucketName)) {
+                bucket = new Bucket(bucketName);
+            } else {
+                bucket = client.createBucket(bucketName);
+            }
+        } catch (OSSException | ClientException e) {
+            String message = e.getMessage();
+            if (message != null) {
+                throw new FileSystemException(message, e);
+            } else {
+                throw new FileSystemException(e);
+            }
+        }
+    }
+
+    protected Bucket getBucket() {
+        return bucket;
+    }
+
+    protected OSS getClient() {
+        return client;
     }
 
     protected FileObject createFile(AbstractFileName name) throws Exception {
@@ -41,4 +61,12 @@ public class OSSFileSystem extends AbstractFileSystem {
     protected void addCapabilities(Collection<Capability> caps) {
         caps.addAll(OSSFileProvider.capabilities);
     }
+
+    protected void doCloseCommunicationLink() {
+        super.doCloseCommunicationLink();
+    }
+//
+//    public void setShutdownServiceOnClose(boolean b) {
+//
+//    }
 }

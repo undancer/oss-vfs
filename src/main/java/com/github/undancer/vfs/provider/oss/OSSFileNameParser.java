@@ -20,16 +20,22 @@ public class OSSFileNameParser extends AbstractFileNameParser {
     }
 
     // oss://bucketName/key
-    // oss:beijing://bucketName/key
-    // oss:hangzhou://bucketName/key
+    // oss-beijing://bucketName/key
+    // oss-hangzhou://bucketName/key
     public FileName parseUri(VfsComponentContext context, FileName base, String filename) throws FileSystemException {
         StringBuilder name = new StringBuilder();
+
         String scheme = UriParser.extractScheme(filename, name);
         UriParser.canonicalizePath(name, 0, name.length(), this);
+
         UriParser.fixSeparators(name);
+
         FileType type = UriParser.normalisePath(name);
+
         final String bucketName = UriParser.extractFirstElement(name);
-        String path = name.toString();
+
+        final String path = name.toString();
+
         return new OSSFileName(scheme, bucketName, path, type);
     }
 
