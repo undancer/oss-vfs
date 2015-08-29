@@ -50,8 +50,9 @@ public class OSSFileObject extends AbstractFileObject {
     protected FileType doGetType() throws Exception {
         if (fileType == null) {
             try {
-                ObjectListing listing = getClient().listObjects(new ListObjectsRequest(bucketName, getPrefix(getKey()), null,
-                        delimiter, 1));
+                ObjectListing listing = getClient().listObjects(
+                        new ListObjectsRequest(bucketName, getPrefix(getKey()), null, delimiter, 1)
+                );
                 if (listing.getCommonPrefixes().size() > 0 || listing.getObjectSummaries().size() > 0) {
                     fileType = FileType.FOLDER;
                 }
@@ -85,7 +86,7 @@ public class OSSFileObject extends AbstractFileObject {
     }
 
     protected void doAttach() throws Exception {
-        logger.error("doAttach");
+//        logger.error("doAttach");
     }
 
     protected String[] doListChildren() throws Exception {
